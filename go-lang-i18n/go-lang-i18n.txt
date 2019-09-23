@@ -1,0 +1,65 @@
+package main
+
+import (
+	"fmt"
+	"github.com/BurntSushi/toml"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
+	"github.com/pkg/errors"
+	"golang.org/x/text/language"
+	"io/ioutil"
+	"path/filepath"
+	"strings"
+)
+
+
+//对应的根据文件扩展名来寻找例如zh
+func main(){
+	var err error
+	lang,err =  NewBundle()
+	if err != nil{
+		panic(err)
+	}
+	fmt.Println(GetI18n("ERROR"))
+}
+
+func  GetI18n(key string) string {
+	//空位默认,前端传入zh 或者 en等
+	accept := ""
+	msg, _ := LocalizeMessageID(lang, key, accept)
+	return msg
+}
+
+func LocalizeMessageID(bundle *i18n.Bundle, messageID string, lang ...string) (string, error) {
+	lo := i18n.NewLocalizer(bundle, lang...)
+	res, err := lo.Localize(&i18n.LocalizeConfig{MessageID: messageID})
+	if err != nil {
+		return "", nil
+	}
+	return res, nil
+}
+
+var lang *i18n.Bundle
+
+func NewBundle() (*i18n.Bundle, error) {
+	//默认为中文 可以选择为别的
+	bundle := i18n.NewBundle(language.Chinese)
+	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
+
+	files, err := ioutil.ReadDir("./test1/t/go-lang")
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	for k := range files {
+		if files[k].IsDir() {
+			continue
+		}
+		if strings.HasSuffix(files[k].Name(), "toml") {
+			_, err = bundle.LoadMessageFile("./test1/t/go-lang" + string(filepath.Separator) + files[k].Name())
+			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+		}
+	}
+	return bundle, nil
+}
